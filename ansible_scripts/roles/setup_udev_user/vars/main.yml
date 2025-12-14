@@ -1,0 +1,11 @@
+---
+# vars file for setup_udev_user
+
+# User configuration
+udev_user: "udev1"
+udev_user_home: "/home/udev1"
+udev_user_shell: "/bin/bash"
+udev_user_comment: "Development User for Motor Telemetry"
+
+# Docker container storage paths will be under udev1 home
+container_data_base: "{{ udev_user_home }}"

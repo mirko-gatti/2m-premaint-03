@@ -1,0 +1,6 @@
+---
+# vars file for setup_docker
+docker_network_name: m-network
+docker_images:
+  - influxdb:3.7.0-core
+  - grafana/grafana:main

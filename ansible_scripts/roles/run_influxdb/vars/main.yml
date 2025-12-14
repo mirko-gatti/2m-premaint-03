@@ -1,0 +1,22 @@
+---
+# vars file for run_influxdb
+
+# Container configuration
+influxdb_container_name: influxdb
+influxdb_image: "influxdb:3.7.0-core"
+influxdb_port: 8181
+influxdb_network: m-network
+
+# Data persistence paths - stored under udev1 home directory
+udev_user_home: "/home/udev1"
+influxdb_data_host_path: "{{ udev_user_home }}/influxdb-data"
+influxdb_config_host_path: "{{ udev_user_home }}/influxdb-config"
+
+# InfluxDB 3.x core configuration
+influxdb_node_id: "influxdb-node-1"
+
+# InfluxDB environment variables
+influxdb_http_bind_address: ":8181"
+
+# Restart policy for auto-start on boot
+influxdb_restart_policy: always

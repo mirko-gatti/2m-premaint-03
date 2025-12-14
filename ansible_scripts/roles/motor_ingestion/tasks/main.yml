@@ -1,0 +1,75 @@
+---
+# tasks file for motor_ingestion
+
+- name: Create motor ingestion directories on host
+  become: true
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+    owner: "{{ motor_ingestion_user }}"
+    group: "{{ motor_ingestion_user }}"
+  loop:
+    - "{{ motor_ingestion_host_path }}"
+    - "{{ motor_ingestion_scripts_path }}"
+    - "{{ motor_ingestion_config_path }}"
+    - "{{ motor_ingestion_logs_path }}"
+    - "{{ motor_ingestion_data_path }}"
+  tags:
+    - motor_ingestion
+
+- name: Pull Python Docker image
+  become: true
+  community.docker.docker_image:
+    name: "{{ motor_ingestion_image }}"
+    source: pull
+    state: present
+  tags:
+    - motor_ingestion
+
+- name: Remove existing motor ingestion container (if any)
+  become: true
+  community.docker.docker_container:
+    name: "{{ motor_ingestion_container_name }}"
+    state: absent
+  ignore_errors: true
+  tags:
+    - motor_ingestion
+
+- name: Run motor ingestion container with placeholder
+  become: true
+  community.docker.docker_container:
+    name: "{{ motor_ingestion_container_name }}"
+    image: "{{ motor_ingestion_image }}"
+    state: started
+    restart_policy: "{{ motor_ingestion_restart_policy }}"
+    networks:
+      - name: "{{ motor_ingestion_network }}"
+    volumes:
+      - "{{ motor_ingestion_scripts_path }}:{{ motor_ingestion_container_scripts_path }}:ro"
+      - "{{ motor_ingestion_config_path }}:{{ motor_ingestion_container_config_path }}:ro"
+      - "{{ motor_ingestion_logs_path }}:{{ motor_ingestion_container_logs_path }}:rw"
+      - "{{ motor_ingestion_data_path }}:{{ motor_ingestion_container_data_path }}:rw"
+    env: "{{ motor_ingestion_env }}"
+    command: "/bin/bash -c \"echo 'Motor ingestion container ready. Awaiting scripts.' && sleep 3600\""
+  tags:
+    - motor_ingestion
+
+- name: Wait for motor ingestion container to start
+  ansible.builtin.pause:
+    seconds: 2
+  tags:
+    - motor_ingestion
+
+- name: Display motor ingestion container information
+  ansible.builtin.debug:
+    msg:
+      - "Motor Ingestion container is running"
+      - "Container name: {{ motor_ingestion_container_name }}"
+      - "Image: {{ motor_ingestion_image }}"
+      - "User context: {{ motor_ingestion_user }}"
+      - "Scripts directory: {{ motor_ingestion_scripts_path }}"
+      - "Monitor with: sudo docker logs -f {{ motor_ingestion_container_name }}"
+      - "NOTE: Copy Python scripts to {{ motor_ingestion_scripts_path }} to execute them"
+  tags:
+    - motor_ingestion

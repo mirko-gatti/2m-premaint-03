@@ -1,0 +1,35 @@
+---
+# vars file for motor_ingestion
+
+# Container configuration
+motor_ingestion_container_name: motor_ingestion
+motor_ingestion_image: "python:3.14-slim"
+motor_ingestion_network: "m-network"
+motor_ingestion_restart_policy: "always"
+
+# Directory paths (all under /home/udev1)
+motor_ingestion_host_path: "/home/udev1/motor_ingestion"
+motor_ingestion_scripts_path: "/home/udev1/motor_ingestion/scripts"
+motor_ingestion_config_path: "/home/udev1/motor_ingestion/config"
+motor_ingestion_logs_path: "/home/udev1/motor_ingestion/logs"
+motor_ingestion_data_path: "/home/udev1/motor_ingestion/data"
+
+# Container paths (internal)
+motor_ingestion_container_scripts_path: "/app/scripts"
+motor_ingestion_container_config_path: "/app/config"
+motor_ingestion_container_logs_path: "/app/logs"
+motor_ingestion_container_data_path: "/app/data"
+
+# Script entry point
+motor_ingestion_script: "main.py"
+
+# User context
+motor_ingestion_user: "udev1"
+
+# Environment variables for container
+motor_ingestion_env:
+  PYTHONUNBUFFERED: "1"
+  LOG_LEVEL: "DEBUG"
+  INFLUXDB_URL: "http://influxdb:8181"
+  INFLUXDB_ORG: "motor_telemetry"
+  INFLUXDB_BUCKET: "sensors"

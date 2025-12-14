@@ -1,0 +1,25 @@
+---
+# vars file for run_grafana
+
+# Container configuration
+grafana_container_name: grafana
+grafana_image: "grafana/grafana:main"
+grafana_port: 3000
+grafana_network: m-network
+
+# Data persistence paths - stored under udev1 home directory
+udev_user_home: "/home/udev1"
+grafana_data_host_path: "{{ udev_user_home }}/grafana-data"
+grafana_provisioning_host_path: "{{ udev_user_home }}/grafana-provisioning"
+
+# Grafana admin credentials (change these for production!)
+grafana_admin_user: admin
+grafana_admin_password: admin
+
+# Grafana environment variables
+grafana_users_allow_sign_up: "false"
+grafana_security_admin_user: "{{ grafana_admin_user }}"
+grafana_security_admin_password: "{{ grafana_admin_password }}"
+
+# Restart policy for auto-start on boot
+grafana_restart_policy: always

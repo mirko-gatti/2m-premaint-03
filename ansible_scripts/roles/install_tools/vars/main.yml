@@ -1,0 +1,5 @@
+---
+# vars file for install_tools
+ansible_package: ansible-core
+docker_repo_url: https://get.docker.com
+docker_script_dest: /tmp/get-docker.sh

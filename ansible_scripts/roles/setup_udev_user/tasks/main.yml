@@ -1,0 +1,74 @@
+---
+# tasks file for setup_udev_user
+
+- name: Check if udev1 home directory exists
+  ansible.builtin.stat:
+    path: "{{ udev_user_home }}"
+  register: udev_home_stat
+  tags:
+    - setup_udev_user
+
+- name: Check if udev1 user already exists
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ udev_user }}"
+  ignore_errors: true
+  register: udev_user_info
+  tags:
+    - setup_udev_user
+
+- name: Create udev1 user (home directory does not exist)
+  become: true
+  ansible.builtin.user:
+    name: "{{ udev_user }}"
+    home: "{{ udev_user_home }}"
+    shell: "{{ udev_user_shell }}"
+    comment: "{{ udev_user_comment }}"
+    state: present
+    create_home: true
+  when: not udev_home_stat.stat.exists
+  tags:
+    - setup_udev_user
+
+- name: Create udev1 user with existing home directory
+  become: true
+  ansible.builtin.user:
+    name: "{{ udev_user }}"
+    home: "{{ udev_user_home }}"
+    shell: "{{ udev_user_shell }}"
+    comment: "{{ udev_user_comment }}"
+    state: present
+    create_home: false
+  when: udev_home_stat.stat.exists and udev_user_info.failed
+  tags:
+    - setup_udev_user
+
+- name: Ensure udev1 home directory has correct permissions
+  become: true
+  ansible.builtin.file:
+    path: "{{ udev_user_home }}"
+    state: directory
+    owner: "{{ udev_user }}"
+    group: "{{ udev_user }}"
+    mode: '0755'
+  tags:
+    - setup_udev_user
+
+- name: Add udev1 to docker group
+  become: true
+  ansible.builtin.user:
+    name: "{{ udev_user }}"
+    groups: docker
+    append: true
+  tags:
+    - setup_udev_user
+
+- name: Display udev1 user setup information
+  ansible.builtin.debug:
+    msg:
+      - "udev1 user has been configured"
+      - "Username: {{ udev_user }}"
+      - "Home directory: {{ udev_user_home }}"
+      - "Shell: {{ udev_user_shell }}"
+  tags:
+    - setup_udev_user

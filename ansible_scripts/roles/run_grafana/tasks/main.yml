@@ -1,0 +1,82 @@
+---
+# tasks file for run_grafana
+
+- name: Create Grafana data directory on host
+  become: true
+  ansible.builtin.file:
+    path: "{{ grafana_data_host_path }}"
+    state: directory
+    mode: '0777'
+    owner: "udev1"
+    group: "udev1"
+  tags:
+    - run_grafana
+
+- name: Create Grafana provisioning directory on host
+  become: true
+  ansible.builtin.file:
+    path: "{{ grafana_provisioning_host_path }}"
+    state: directory
+    mode: '0777'
+    owner: "udev1"
+    group: "udev1"
+  tags:
+    - run_grafana
+
+- name: Remove existing Grafana container (if any)
+  become: true
+  community.docker.docker_container:
+    name: "{{ grafana_container_name }}"
+    state: absent
+  ignore_errors: true
+  tags:
+    - run_grafana
+
+- name: Run Grafana container
+  become: true
+  community.docker.docker_container:
+    name: "{{ grafana_container_name }}"
+    image: "{{ grafana_image }}"
+    state: started
+    restart_policy: "{{ grafana_restart_policy }}"
+    networks:
+      - name: "{{ grafana_network }}"
+    ports:
+      - "{{ grafana_port }}:3000"
+    volumes:
+      - "{{ grafana_data_host_path }}:/var/lib/grafana"
+      - "{{ grafana_provisioning_host_path }}:/etc/grafana/provisioning"
+    env:
+      GF_USERS_ALLOW_SIGN_UP: "{{ grafana_users_allow_sign_up }}"
+      GF_SECURITY_ADMIN_USER: "{{ grafana_security_admin_user }}"
+      GF_SECURITY_ADMIN_PASSWORD: "{{ grafana_security_admin_password }}"
+    healthcheck:
+      test: ["CMD", "curl", "-s", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+  tags:
+    - run_grafana
+
+- name: Wait for Grafana to be ready
+  ansible.builtin.wait_for:
+    host: localhost
+    port: "{{ grafana_port }}"
+    delay: 5
+    timeout: 60
+  tags:
+    - run_grafana
+
+- name: Display Grafana container information
+  ansible.builtin.debug:
+    msg:
+      - "Grafana container is running"
+      - "Container name: {{ grafana_container_name }}"
+      - "Port: {{ grafana_port }}"
+      - "Data directory: {{ grafana_data_host_path }}"
+      - "Access URL: http://localhost:{{ grafana_port }}"
+      - "Default credentials: {{ grafana_admin_user }} / {{ grafana_admin_password }}"
+      - "NOTE: Change default password after first login!"
+  tags:
+    - run_grafana

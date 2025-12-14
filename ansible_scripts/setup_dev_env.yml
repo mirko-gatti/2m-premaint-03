@@ -1,0 +1,73 @@
+---
+- name: Setup Development Environment
+  hosts: localhost
+  connection: local
+  gather_facts: true
+
+  vars_files:
+    - ../config/setup-config.yaml
+
+  pre_tasks:
+    - name: Set ansible_user if not defined
+      ansible.builtin.set_fact:
+        ansible_user: "{{ lookup('env', 'USER') }}"
+      when: ansible_user is not defined
+      tags:
+        - always
+
+  roles:
+    - role: install_tools
+    - role: setup_docker
+    - role: setup_udev_user
+    - role: run_influxdb
+    - role: run_grafana
+    - role: motor_ingestion
+
+  post_tasks:
+    - name: Run InfluxDB security initialization
+      ansible.builtin.command: "{{ playbook_dir }}/../scripts/influxdb-init.sh"
+      register: influxdb_init_result
+      changed_when: false
+      ignore_errors: true
+      tags:
+        - influxdb_security
+
+    - name: Run Grafana security initialization
+      ansible.builtin.command: "{{ playbook_dir }}/../scripts/grafana-init.sh"
+      register: grafana_init_result
+      changed_when: false
+      ignore_errors: true
+      tags:
+        - grafana_security
+
+    - name: Display setup completion information
+      ansible.builtin.debug:
+        msg:
+          - "========================================="
+          - "  Development Environment Setup Complete!"
+          - "========================================="
+          - ""
+          - "Containers Running:"
+          - "  - InfluxDB (port 8181): http://localhost:8181"
+          - "  - Grafana (port 3000): http://localhost:3000"
+          - "  - Motor Ingestion: Ready for Python scripts"
+          - ""
+          - "Security Configuration:"
+          - "  - InfluxDB tokens: .influxdb-*-token files"
+          - "  - Grafana tokens: .grafana-*-token files"
+          - ""
+          - "Data Directories:"
+          - "  - InfluxDB: /home/udev1/influxdb-data"
+          - "  - Grafana: /home/udev1/grafana-data"
+          - "  - Motor Ingestion: /home/udev1/motor_ingestion"
+          - ""
+          - "Next Steps:"
+          - "  1. Access Grafana: http://localhost:3000"
+          - "  2. Access InfluxDB: http://localhost:8181"
+          - "  3. Configure datasources if needed"
+          - "  4. Deploy motor ingestion Python scripts"
+          - ""
+          - "To teardown: ansible-playbook -i inventory/hosts teardown_dev_env.yml --ask-become-pass"
+          - "========================================="
+      tags:
+        - always

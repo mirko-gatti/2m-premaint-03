@@ -1,0 +1,86 @@
+---
+# tasks file for run_influxdb
+
+- name: Create InfluxDB data directory on host
+  become: true
+  ansible.builtin.file:
+    path: "{{ influxdb_data_host_path }}"
+    state: directory
+    mode: '0755'
+    owner: "udev1"
+    group: "udev1"
+  tags:
+    - run_influxdb
+
+- name: Create InfluxDB config directory on host
+  become: true
+  ansible.builtin.file:
+    path: "{{ influxdb_config_host_path }}"
+    state: directory
+    mode: '0755'
+    owner: "udev1"
+    group: "udev1"
+  tags:
+    - run_influxdb
+
+- name: Remove existing InfluxDB container (if any)
+  become: true
+  community.docker.docker_container:
+    name: "{{ influxdb_container_name }}"
+    state: absent
+  ignore_errors: true
+  tags:
+    - run_influxdb
+
+- name: Run InfluxDB container
+  become: true
+  community.docker.docker_container:
+    name: "{{ influxdb_container_name }}"
+    image: "{{ influxdb_image }}"
+    state: started
+    restart_policy: "{{ influxdb_restart_policy }}"
+    networks:
+      - name: "{{ influxdb_network }}"
+    ports:
+      - "{{ influxdb_port }}:8181"
+    volumes:
+      - "{{ influxdb_data_host_path }}:/var/lib/influxdb2"
+      - "{{ influxdb_config_host_path }}:/etc/influxdb2"
+    env:
+      INFLUXDB_HTTP_BIND_ADDRESS: "{{ influxdb_http_bind_address }}"
+    command: 
+      - "influxdb3"
+      - "serve"
+      - "--node-id"
+      - "{{ influxdb_node_id }}"
+      - "--disable-authz"
+      - "health,ping,metrics"
+    healthcheck:
+      test: ["CMD", "curl", "-s", "http://localhost:8181/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+  tags:
+    - run_influxdb
+
+- name: Wait for InfluxDB to be ready
+  ansible.builtin.wait_for:
+    host: localhost
+    port: "{{ influxdb_port }}"
+    delay: 5
+    timeout: 120
+  tags:
+    - run_influxdb
+
+- name: Display InfluxDB container information
+  ansible.builtin.debug:
+    msg:
+      - "InfluxDB container is running"
+      - "Container name: {{ influxdb_container_name }}"
+      - "Image: {{ influxdb_image }}"
+      - "Port: {{ influxdb_port }}"
+      - "Data directory: {{ influxdb_data_host_path }}"
+      - "Access URL: http://localhost:{{ influxdb_port }}"
+  tags:
+    - run_influxdb

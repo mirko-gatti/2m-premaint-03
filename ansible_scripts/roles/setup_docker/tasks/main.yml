@@ -1,0 +1,19 @@
+---
+# tasks file for setup_docker
+
+- name: Ensure Docker network exists
+  become: true
+  community.docker.docker_network:
+    name: "{{ docker_network_name }}"
+    state: present
+  tags:
+    - setup_docker
+
+- name: Pull Docker images
+  become: true
+  community.docker.docker_image:
+    name: "{{ item }}"
+    source: pull
+  loop: "{{ docker_images }}"
+  tags:
+    - setup_docker

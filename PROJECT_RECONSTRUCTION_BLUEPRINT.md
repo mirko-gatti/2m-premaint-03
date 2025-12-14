@@ -1,6 +1,6 @@
-# 2m-premaint-02: Project Reconstruction Blueprint
+# 2m-premaint-03: Project Reconstruction Blueprint
 
-**Purpose:** Technical specification for recreating the entire 2m-premaint-02 project from first principles.  
+**Purpose:** Technical specification for recreating the entire 2m-premaint-03 project from first principles.  
 **Audience:** Future self - to rebuild scripts, playbooks, and configurations.  
 **Date Created:** December 14, 2025  
 **Status:** In Progress - Phase 1-2 Complete
@@ -9,7 +9,7 @@
 
 ## Overview
 
-This document serves as a **detailed blueprint** to recreate the 2m-premaint-02 project. It contains the exact specifications, code structures, and configurations needed to rebuild every script and Ansible playbook from scratch.
+This document serves as a **detailed blueprint** to recreate the 2m-premaint-03 project. It contains the exact specifications, code structures, and configurations needed to rebuild every script and Ansible playbook from scratch.
 
 ### Project Goal
 Automated setup and teardown of a motor telemetry development and runtime environment using:
@@ -17,7 +17,97 @@ Automated setup and teardown of a motor telemetry development and runtime enviro
 - Docker (containerization)
 - InfluxDB 3.7.0-core (time-series database)
 - Grafana (visualization)
-- Python 3.12 (sensor simulation and data ingestion)
+- Python 3.14 (sensor simulation and data ingestion)
+
+---
+
+## Phase 0: Prerequisites Check
+
+### Phase 0.1: System Requirements
+
+Before attempting to run scripts, verify system meets requirements:
+
+**Operating System:**
+- Fedora 40+ (tested and primary target)
+- RHEL/CentOS derivatives (compatible with adjustments)
+- Other Linux distributions (not tested)
+
+**Software:**
+- `bash` 4.0+ (for shell scripts)
+- `git` (for repository cloning)
+- `sudo` access (for Docker and package management)
+- `curl` or `wget` (for downloading Docker installer)
+
+**System Resources:**
+- RAM: 4GB minimum (8GB recommended for full stack)
+- Disk: 10GB free (for containers and data)
+- CPU: 2+ cores (4+ recommended)
+
+**Verification Script:**
+```bash
+#!/bin/bash
+# Quick system verification
+
+echo "=== System Requirements Check ==="
+echo ""
+
+echo "OS: $(cat /etc/os-release | grep '^ID=')"
+echo "Kernel: $(uname -r)"
+echo "RAM: $(free -h | head -2 | tail -1)"
+echo "Disk: $(df -h / | tail -1)"
+echo ""
+
+echo "=== Required Commands ==="
+for cmd in bash git sudo curl dnf; do
+    if command -v $cmd &> /dev/null; then
+        echo "✓ $cmd"
+    else
+        echo "✗ $cmd (MISSING)"
+    fi
+done
+echo ""
+
+echo "=== Sudo Access ==="
+if sudo -n true 2>/dev/null; then
+    echo "✓ No password required for sudo"
+else
+    echo "⚠ Sudo password will be required"
+fi
+```
+
+---
+
+### Phase 0.2: Step-by-Step Execution
+
+**Complete workflow from start to running infrastructure:**
+
+```
+Step 1: Clone Repository
+  $ ./clone-repo.sh
+  → Creates ~/Dev/2m/2m-premaint-03/
+
+Step 2: Set Permissions
+  $ cd ~/Dev/2m/2m-premaint-03
+  $ chmod +x scripts/*.sh
+
+Step 3: Install Ansible
+  $ ./scripts/setup-ansible.sh
+  → Installs Ansible and community.docker collection
+  → Requires sudo password
+
+Step 4: Verify Ansible
+  $ ansible --version
+  $ ansible -i ansible_scripts/inventory/hosts localhost -m ping
+
+Step 5: Run Setup Playbook (Phase 3+)
+  $ ansible-playbook -i ansible_scripts/inventory/hosts \
+      ansible_scripts/setup_dev_env.yml --ask-become-pass
+  → Sets up Docker, InfluxDB, Grafana, Motor Ingestion
+
+Step 6: Verify Running Services
+  $ docker ps
+  → Should show 3 containers: influxdb, grafana, motor_ingestion
+```
 
 ---
 
@@ -34,11 +124,11 @@ Automated setup and teardown of a motor telemetry development and runtime enviro
 ```bash
 #!/bin/bash
 
-# Clone the 2m-premaint-02 repository from GitHub
+# Clone the 2m-premaint-03 repository from GitHub
 
 set -e
 
-REPO_URL="git@github.com:mirko-gatti/2m-premaint-02.git"
+REPO_URL="git@github.com:mirko-gatti/2m-premaint-03.git"
 TARGET_DIR="${1:-.}"
 
 # Function to print error messages and exit
@@ -93,7 +183,7 @@ exit 0
 ./clone-repo.sh
 
 # Or clone to specific directory
-./clone-repo.sh ~/Dev/2m/2m-premaint-02
+./clone-repo.sh ~/Dev/2m/2m-premaint-03
 ```
 
 **Expected Output:**
@@ -102,7 +192,7 @@ exit 0
   Repository Clone Script
 ======================================
 
-Repository URL: git@github.com:mirko-gatti/2m-premaint-02.git
+Repository URL: git@github.com:mirko-gatti/2m-premaint-03.git
 Target Directory: .
 
 --- Cloning Repository ---
@@ -112,7 +202,7 @@ remote: Enumerating objects: ...
 SUCCESS: Repository cloned successfully.
 
 Next steps:
-1. Navigate to the repository: cd 2m-premaint-02
+1. Navigate to the repository: cd 2m-premaint-03
 2. Run: ./scripts/setup-ansible.sh
 3. Run: ansible-playbook -i ansible_scripts/inventory/hosts ansible_scripts/setup_dev_env.yml --ask-become-pass
 ```
@@ -259,7 +349,7 @@ End (Ready for playbook execution)
 **Execution:**
 ```bash
 # Navigate to project root
-cd ~/Dev/2m/2m-premaint-02
+cd ~/Dev/2m/2m-premaint-03
 
 # Run the script
 ./scripts/setup-ansible.sh
@@ -398,101 +488,11 @@ ansible_scripts/
 
 ---
 
-## Phase 3: Prerequisites Check
+## Phase 3: Centralized Configuration & Security Setup
 
-### Phase 3.1: System Requirements
+### Phase 3.1: Centralized Configuration File
 
-Before attempting to run scripts, verify system meets requirements:
-
-**Operating System:**
-- Fedora 40+ (tested and primary target)
-- RHEL/CentOS derivatives (compatible with adjustments)
-- Other Linux distributions (not tested)
-
-**Software:**
-- `bash` 4.0+ (for shell scripts)
-- `git` (for repository cloning)
-- `sudo` access (for Docker and package management)
-- `curl` or `wget` (for downloading Docker installer)
-
-**System Resources:**
-- RAM: 4GB minimum (8GB recommended for full stack)
-- Disk: 10GB free (for containers and data)
-- CPU: 2+ cores (4+ recommended)
-
-**Verification Script:**
-```bash
-#!/bin/bash
-# Quick system verification
-
-echo "=== System Requirements Check ==="
-echo ""
-
-echo "OS: $(cat /etc/os-release | grep '^ID=')"
-echo "Kernel: $(uname -r)"
-echo "RAM: $(free -h | head -2 | tail -1)"
-echo "Disk: $(df -h / | tail -1)"
-echo ""
-
-echo "=== Required Commands ==="
-for cmd in bash git sudo curl dnf; do
-    if command -v $cmd &> /dev/null; then
-        echo "✓ $cmd"
-    else
-        echo "✗ $cmd (MISSING)"
-    fi
-done
-echo ""
-
-echo "=== Sudo Access ==="
-if sudo -n true 2>/dev/null; then
-    echo "✓ No password required for sudo"
-else
-    echo "⚠ Sudo password will be required"
-fi
-```
-
----
-
-## Phase 4: Execution Workflow
-
-### Phase 4.1: Step-by-Step Execution
-
-**Complete workflow from start to running infrastructure:**
-
-```
-Step 1: Clone Repository
-  $ ./clone-repo.sh
-  → Creates ~/Dev/2m/2m-premaint-02/
-
-Step 2: Set Permissions
-  $ cd ~/Dev/2m/2m-premaint-02
-  $ chmod +x scripts/*.sh
-
-Step 3: Install Ansible
-  $ ./scripts/setup-ansible.sh
-  → Installs Ansible and community.docker collection
-  → Requires sudo password
-
-Step 4: Verify Ansible
-  $ ansible --version
-  $ ansible -i ansible_scripts/inventory/hosts localhost -m ping
-
-Step 5: Run Setup Playbook (Phase 3+)
-  $ ansible-playbook -i ansible_scripts/inventory/hosts \
-      ansible_scripts/setup_dev_env.yml --ask-become-pass
-  → Sets up Docker, InfluxDB, Grafana, Motor Ingestion
-
-Step 6: Verify Running Services
-  $ docker ps
-  → Should show 3 containers: influxdb, grafana, motor_ingestion
-```
-
----
-
-## Phase 2.5: Centralized Configuration File
-
-### Phase 2.5.1: Configuration File Purpose & Strategy
+#### Phase 3.1.1: Configuration File Purpose & Strategy
 
 **File Location:** `config/setup-config.yaml`  
 **Purpose:** Single source of truth for all setup parameters - versions, paths, credentials, names  
@@ -506,13 +506,13 @@ Step 6: Verify Running Services
 
 ---
 
-### Phase 2.5.2: Complete Configuration File Specification
+### Phase 3.1.2: Complete Configuration File Specification
 
 **File Location:** `config/setup-config.yaml`
 
 ```yaml
 ---
-# 2m-premaint-02 Setup Configuration File
+# 2m-premaint-03 Setup Configuration File
 # Single source of truth for all customizable parameters
 
 # System & Package Configuration
@@ -540,7 +540,7 @@ user:
 # Docker Network Configuration
 docker:
   network:
-    name: gemini-network
+    name: m-network
     driver: bridge
 
 # InfluxDB Configuration
@@ -549,7 +549,7 @@ influxdb:
     name: influxdb
     image: influxdb:3.7.0-core
     port: 8181
-    network: gemini-network
+    network: m-network
     restart_policy: always
   paths:
     data: "{{ user.home_directory }}/influxdb-data"
@@ -568,7 +568,7 @@ grafana:
     name: grafana
     image: grafana/grafana:main
     port: 3000
-    network: gemini-network
+    network: m-network
     restart_policy: always
   paths:
     data: "{{ user.home_directory }}/grafana-data"
@@ -582,8 +582,8 @@ grafana:
 motor_ingestion:
   container:
     name: motor_ingestion
-    image: python:3.12-slim
-    network: gemini-network
+    image: python:3.14-slim
+    network: m-network
     restart_policy: always
   paths:
     base: "{{ user.home_directory }}/motor_ingestion"
@@ -667,7 +667,7 @@ features:
 
 ---
 
-### Phase 2.5.3: Configuration Usage Pattern
+### Phase 3.1.3: Configuration Usage Pattern
 
 **In Shell Scripts:**
 ```bash
@@ -703,7 +703,7 @@ roles:
 
 ---
 
-### Phase 2.5.4: Directory Structure
+### Phase 3.1.4: Directory Structure
 
 ```
 config/
@@ -714,9 +714,9 @@ Place in project root alongside `scripts/`, `ansible_scripts/`, `docs/`.
 
 ---
 
-## Phase 2.6: InfluxDB Security Configuration & Token Generation
+## Phase 3.2: InfluxDB Security Configuration & Token Generation
 
-### Phase 2.6.1: Security Architecture
+### Phase 3.2.1: Security Architecture
 
 **Objective:** Configure InfluxDB 3.x with full security enabled
 
@@ -736,7 +736,7 @@ Place in project root alongside `scripts/`, `ansible_scripts/`, `docs/`.
 
 ---
 
-### Phase 2.6.2: Security Configuration File Extension
+### Phase 3.2.2: Security Configuration File Extension
 
 **Add to `config/setup-config.yaml`:**
 
@@ -834,7 +834,7 @@ influxdb_security:
 
 ---
 
-### Phase 2.6.3: InfluxDB Initialization Script
+### Phase 3.2.3: InfluxDB Initialization Script
 
 **File Location:** `scripts/influxdb-init.sh`  
 **Purpose:** Initialize InfluxDB with security setup after container starts  
@@ -1063,7 +1063,7 @@ exit 0
 
 ---
 
-### Phase 2.6.4: Token Integration into Roles
+### Phase 3.2.4: Token Integration into Roles
 
 **Update `ansible_scripts/roles/run_influxdb/tasks/main.yml`:**
 
@@ -1132,7 +1132,7 @@ class InfluxDBConnection:
 
 ---
 
-### Phase 2.6.5: Security Token File Management
+### Phase 3.2.5: Security Token File Management
 
 **Generated Token Files:**
 ```
@@ -1159,7 +1159,7 @@ project_root/
 
 ---
 
-### Phase 2.6.6: Security Modifications to Playbooks
+### Phase 3.2.6: Security Modifications to Playbooks
 
 **Update `ansible_scripts/setup_dev_env.yml`:**
 
@@ -1215,7 +1215,7 @@ project_root/
 
 ---
 
-### Phase 2.6.7: Security Verification Script
+### Phase 3.2.7: Security Verification Script
 
 **File Location:** `scripts/verify-influxdb-security.sh`  
 **Purpose:** Verify InfluxDB security is properly configured
@@ -1288,7 +1288,7 @@ echo "======================================="
 
 ---
 
-### Phase 2.6.8: Updated Helper Script
+### Phase 3.2.8: Updated Helper Script
 
 **Update `scripts/run_setup_playbook.sh`:**
 
@@ -1308,7 +1308,7 @@ fi
 
 ---
 
-## Summary: InfluxDB Security Implementation
+### Phase 3.2.9: Summary - InfluxDB Security Implementation
 
 **What Gets Configured:**
 - ✅ Organization: `motor_telemetry`
@@ -1332,9 +1332,9 @@ fi
 
 ---
 
-## Phase 2.7: Grafana Security Configuration
+## Phase 3.3: Grafana Security Configuration
 
-### Phase 2.7.1: Grafana Security Architecture
+### Phase 3.3.1: Grafana Security Architecture
 
 **Objective:** Configure Grafana with full security enabled
 
@@ -1358,7 +1358,7 @@ fi
 
 ---
 
-### Phase 2.7.2: Grafana Security Configuration File Extension
+### Phase 3.3.2: Grafana Security Configuration File Extension
 
 **Add to `config/setup-config.yaml`:**
 
@@ -1481,7 +1481,7 @@ grafana_security:
 
 ---
 
-### Phase 2.7.3: Grafana Initialization Script
+### Phase 3.3.3: Grafana Initialization Script
 
 **File Location:** `scripts/grafana-init.sh`  
 **Purpose:** Initialize Grafana with security setup after container starts  
@@ -1770,7 +1770,7 @@ exit 0
 
 ---
 
-### Phase 2.7.4: Integration into Ansible Roles
+### Phase 3.3.4: Integration into Ansible Roles
 
 **Update `ansible_scripts/roles/run_grafana/tasks/main.yml`:**
 
@@ -1812,7 +1812,7 @@ grafana_provisioning_token: "{{ lookup('file', grafana_provisioning_token_file) 
 
 ---
 
-### Phase 2.7.5: Security Configuration Files
+### Phase 3.3.5: Security Configuration Files
 
 **Update `config/setup-config.yaml` - Grafana section:**
 
@@ -1825,7 +1825,7 @@ grafana:
     name: grafana
     image: grafana/grafana:main
     port: 3000
-    network: gemini-network
+    network: m-network
     restart_policy: always
     
   # Data persistence paths
@@ -1885,7 +1885,7 @@ grafana:
 
 ---
 
-### Phase 2.7.6: Grafana Security Verification Script
+### Phase 3.3.6: Grafana Security Verification Script
 
 **File Location:** `scripts/verify-grafana-security.sh`  
 **Purpose:** Verify Grafana security is properly configured
@@ -1979,7 +1979,7 @@ echo "======================================="
 
 ---
 
-### Phase 2.7.7: Grafana Provisioning Configuration
+### Phase 3.3.7: Grafana Provisioning Configuration
 
 **File Location:** `ansible_scripts/roles/run_grafana/files/provisioning/dashboards/motor_telemetry.json`  
 **Purpose:** Pre-provision dashboard for motor telemetry visualization
@@ -2122,7 +2122,7 @@ echo "======================================="
 
 ---
 
-### Phase 2.7.8: Updated Setup Playbook
+### Phase 3.3.8: Updated Setup Playbook
 
 **Update `ansible_scripts/setup_dev_env.yml`:**
 
@@ -2170,7 +2170,7 @@ Add security initialization for Grafana:
 
 ---
 
-### Phase 2.7.9: Security Token File Management
+### Phase 3.3.9: Security Token File Management
 
 **Generated Grafana Token Files:**
 ```
@@ -2194,7 +2194,7 @@ project_root/
 
 ---
 
-## Summary: Grafana Security Implementation
+### Phase 3.3.10: Summary - Grafana Security Implementation
 
 **What Gets Configured:**
 - ✅ Admin User: `grafana_admin` with secure password
@@ -2223,9 +2223,9 @@ project_root/
 
 ---
 
-## Phase 3: Ansible Setup Playbook & Roles
+## Phase 4: Ansible Setup Playbook & Roles
 
-### Phase 3.0: Main Setup Playbook
+### Phase 4.1: Main Setup Playbook
 
 **File Location:** `ansible_scripts/setup_dev_env.yml`  
 **Purpose:** Orchestrate infrastructure setup by calling roles in sequence  
@@ -2293,7 +2293,7 @@ localhost : ok=35  changed=10  unreachable=0  failed=0
 
 ---
 
-### Phase 3.1: install_tools Role
+### Phase 4.2: install_tools Role
 
 **Location:** `ansible_scripts/roles/install_tools/`
 
@@ -2408,7 +2408,7 @@ docker_script_dest: /tmp/get-docker.sh
 
 ---
 
-### Phase 3.2: setup_docker Role
+### Phase 4.3: setup_docker Role
 
 **Location:** `ansible_scripts/roles/setup_docker/`
 
@@ -2427,7 +2427,7 @@ setup_docker/
 ```yaml
 ---
 # vars file for setup_docker
-docker_network_name: gemini-network
+docker_network_name: m-network
 docker_images:
   - influxdb:3.7.0-core
   - grafana/grafana:main
@@ -2457,7 +2457,7 @@ docker_images:
 ```
 
 **Key Tasks:**
-1. Create Docker bridge network `gemini-network` for inter-container communication
+1. Create Docker bridge network `m-network` for inter-container communication
 2. Pull 2 base images:
    - `influxdb:3.7.0-core` - time-series database
    - `grafana/grafana:main` - visualization dashboard
@@ -2469,7 +2469,7 @@ docker_images:
 
 ---
 
-### Phase 3.3: setup_udev_user Role
+### Phase 4.4: setup_udev_user Role
 
 **Location:** `ansible_scripts/roles/setup_udev_user/`
 
@@ -2593,7 +2593,7 @@ container_data_base: "{{ udev_user_home }}"
 
 ---
 
-### Phase 3.4: run_influxdb Role
+### Phase 4.5: run_influxdb Role
 
 **Location:** `ansible_scripts/roles/run_influxdb/`
 
@@ -2617,7 +2617,7 @@ run_influxdb/
 influxdb_container_name: influxdb
 influxdb_image: "influxdb:3.7.0-core"
 influxdb_port: 8181
-influxdb_network: gemini-network
+influxdb_network: m-network
 
 # Data persistence paths - stored under udev1 home directory
 udev_user_home: "/home/udev1"
@@ -2729,7 +2729,7 @@ influxdb_restart_policy: always
 2. Remove any existing container (idempotent)
 3. Start container with:
    - Port mapping: `8181:8181`
-   - Network: `gemini-network`
+   - Network: `m-network`
    - Volumes: data and config directories
    - Auth disabled for development (health, ping, metrics endpoints)
 4. Wait for port 8181 to be listening
@@ -2742,7 +2742,7 @@ influxdb_restart_policy: always
 
 ---
 
-### Phase 3.5: run_grafana Role
+### Phase 4.6: run_grafana Role
 
 **Location:** `ansible_scripts/roles/run_grafana/`
 
@@ -2766,7 +2766,7 @@ run_grafana/
 grafana_container_name: grafana
 grafana_image: "grafana/grafana:main"
 grafana_port: 3000
-grafana_network: gemini-network
+grafana_network: m-network
 
 # Data persistence paths - stored under udev1 home directory
 udev_user_home: "/home/udev1"
@@ -2877,7 +2877,7 @@ grafana_restart_policy: always
 2. Remove any existing container
 3. Start container with:
    - Port mapping: `3000:3000`
-   - Network: `gemini-network`
+   - Network: `m-network`
    - Volumes: dashboards, settings, provisioning
    - Default credentials: `admin/admin`
 4. Wait for port 3000 to be listening
@@ -2890,7 +2890,7 @@ grafana_restart_policy: always
 
 ---
 
-### Phase 3.6: motor_ingestion Role
+### Phase 4.7: motor_ingestion Role
 
 **Location:** `ansible_scripts/roles/motor_ingestion/`
 
@@ -2912,8 +2912,8 @@ motor_ingestion/
 
 # Container configuration
 motor_ingestion_container_name: motor_ingestion
-motor_ingestion_image: "python:3.12-slim"
-motor_ingestion_network: "gemini-network"
+motor_ingestion_image: "python:3.14-slim"
+motor_ingestion_network: "m-network"
 motor_ingestion_restart_policy: "always"
 
 # Directory paths (all under /home/udev1)
@@ -2975,16 +2975,16 @@ motor_ingestion_env:
     owner: "{{ motor_ingestion_user }}"
     group: "{{ motor_ingestion_user }}"
   loop:
-    - "/home/ethan/Dev/2m/2m-premaint-02/scripts/motor_ingestion/main.py"
-    - "/home/ethan/Dev/2m/2m-premaint-02/scripts/motor_ingestion/sensor_simulator.py"
-    - "/home/ethan/Dev/2m/2m-premaint-02/scripts/motor_ingestion/influxdb_connection.py"
+    - "/home/ethan/Dev/2m/2m-premaint-03/scripts/motor_ingestion/main.py"
+    - "/home/ethan/Dev/2m/2m-premaint-03/scripts/motor_ingestion/sensor_simulator.py"
+    - "/home/ethan/Dev/2m/2m-premaint-03/scripts/motor_ingestion/influxdb_connection.py"
   tags:
     - motor_ingestion
 
 - name: Copy requirements.txt to host
   become: true
   ansible.builtin.copy:
-    src: "/home/ethan/Dev/2m/2m-premaint-02/scripts/motor_ingestion/requirements.txt"
+    src: "/home/ethan/Dev/2m/2m-premaint-03/scripts/motor_ingestion/requirements.txt"
     dest: "{{ motor_ingestion_scripts_path }}/requirements.txt"
     mode: '0644'
     owner: "{{ motor_ingestion_user }}"
@@ -3052,13 +3052,13 @@ motor_ingestion_env:
 1. Create 5 host directories (scripts, config, logs, data, base)
 2. Copy 3 Python scripts from source to container mount point
 3. Copy requirements.txt for pip dependencies
-4. Pull Python 3.12-slim image
+4. Pull Python 3.14-slim image
 5. Remove any existing container
 6. Start container with:
    - Command: Install pip packages, then run main.py
    - Volumes: Read-only for scripts/config, read-write for logs/data
    - Environment variables for InfluxDB connection
-   - Network: `gemini-network` for inter-container communication
+   - Network: `m-network` for inter-container communication
 7. Wait 3 seconds for startup
 8. Display confirmation
 
@@ -3072,9 +3072,9 @@ motor_ingestion_env:
 
 ---
 
-## Phase 4: Ansible Teardown Playbook & Roles
+## Phase 5: Ansible Teardown Playbook & Roles
 
-### Phase 4.0: Main Teardown Playbook
+### Phase 5.1: Main Teardown Playbook
 
 **File Location:** `ansible_scripts/teardown_dev_env.yml`  
 **Purpose:** Orchestrate infrastructure teardown by calling teardown roles in reverse order  
@@ -3117,7 +3117,7 @@ motor_ingestion_env:
     - name: Remove Docker network
       become: true
       community.docker.docker_network:
-        name: gemini-network
+        name: m-network
         state: absent
       tags:
         - teardown_docker
@@ -3207,7 +3207,7 @@ motor_ingestion_env:
 4. teardown_udev_user         → Delete udev1 user (home preserved)
 5. Main tasks:
    → Remove influxdb & grafana images
-   → Remove gemini-network
+   → Remove m-network
    → Remove ansible_user from docker group
    → Remove udev1 from docker group
    → Stop Docker service
@@ -3216,7 +3216,7 @@ motor_ingestion_env:
 
 ---
 
-### Phase 4.1: teardown_motor_ingestion Role
+### Phase 5.2: teardown_motor_ingestion Role
 
 **Location:** `ansible_scripts/roles/teardown_motor_ingestion/`
 
@@ -3238,7 +3238,7 @@ teardown_motor_ingestion/
 
 # References same variables as setup role
 motor_ingestion_container_name: motor_ingestion
-motor_ingestion_image: "python:3.12-slim"
+motor_ingestion_image: "python:3.14-slim"
 motor_ingestion_host_path: "/home/udev1/motor_ingestion"
 motor_ingestion_scripts_path: "/home/udev1/motor_ingestion/scripts"
 motor_ingestion_config_path: "/home/udev1/motor_ingestion/config"
@@ -3286,14 +3286,14 @@ motor_ingestion_data_path: "/home/udev1/motor_ingestion/data"
 
 **Key Tasks:**
 1. Stop and remove container (ignore errors if not running)
-2. Remove Python 3.12-slim image
+2. Remove Python 3.14-slim image
 3. Display information about preserved data
 
 **Preservation Note:** Python scripts and data directories kept for recovery/debugging
 
 ---
 
-### Phase 4.2: teardown_grafana Role
+### Phase 5.3: teardown_grafana Role
 
 **Location:** `ansible_scripts/roles/teardown_grafana/`
 
@@ -3353,7 +3353,7 @@ grafana_provisioning_host_path: "/home/udev1/grafana-provisioning"
 
 ---
 
-### Phase 4.3: teardown_influxdb Role
+### Phase 5.4: teardown_influxdb Role
 
 **Location:** `ansible_scripts/roles/teardown_influxdb/`
 
@@ -3413,7 +3413,7 @@ influxdb_config_host_path: "/home/udev1/influxdb-config"
 
 ---
 
-### Phase 4.4: teardown_udev_user Role
+### Phase 5.5: teardown_udev_user Role
 
 **Location:** `ansible_scripts/roles/teardown_udev_user/`
 
@@ -3481,7 +3481,7 @@ udev_user_home: "/home/udev1"
 
 ---
 
-### Phase 4.5: Main Teardown Tasks
+### Phase 5.6: Main Teardown Tasks
 
 **Location:** `ansible_scripts/teardown_dev_env.yml` (tasks section)
 
@@ -3495,7 +3495,7 @@ udev_user_home: "/home/udev1"
    - (Python image removed by teardown_motor_ingestion role)
 
 2. **Remove Docker Network:**
-   - `gemini-network` bridge network
+   - `m-network` bridge network
    - Cleans up inter-container communication infrastructure
 
 3. **Remove Docker Group Membership:**
@@ -3529,7 +3529,7 @@ udev_user_home: "/home/udev1"
 ### What Gets Deleted:
 - ✅ Containers (influxdb, grafana, motor_ingestion)
 - ✅ Docker images (influxdb, grafana, python)
-- ✅ Docker network (gemini-network)
+- ✅ Docker network (m-network)
 - ✅ Docker installation and service
 - ✅ udev1 user account
 - ✅ Docker group membership for users
@@ -3589,9 +3589,9 @@ rm -rf /home/udev1/motor_ingestion
 
 ---
 
-## Phase 5: Helper Scripts for Playbook Execution
+## Phase 6: Helper Scripts for Playbook Execution
 
-### Phase 5.1: Setup Playbook Runner Script
+### Phase 6.1: Setup Playbook Runner Script
 
 **File Location:** `scripts/run_setup_playbook.sh`  
 **Purpose:** Convenience wrapper to execute setup playbook with proper error handling and user feedback  
@@ -3678,7 +3678,7 @@ print_section "Ready to Deploy"
 echo ""
 echo "This will setup your development environment:"
 echo "  - Docker and required tools"
-echo "  - Docker network (gemini-network)"
+echo "  - Docker network (m-network)"
 echo "  - Application user (udev1)"
 echo "  - InfluxDB container (port 8181)"
 echo "  - Grafana container (port 3000)"
@@ -3768,8 +3768,8 @@ Success? Display URLs and next steps
   Ansible Setup Playbook Runner
 =======================================
 
-Project Root: /home/ethan/Dev/2m/2m-premaint-02
-Ansible Directory: /home/ethan/Dev/2m/2m-premaint-02/ansible_scripts
+Project Root: /home/ethan/Dev/2m/2m-premaint-03
+Ansible Directory: /home/ethan/Dev/2m/2m-premaint-03/ansible_scripts
 
 --- Checking Ansible Installation ---
 SUCCESS: Ansible found
@@ -3787,7 +3787,7 @@ SUCCESS: community.docker collection is installed
 
 This will setup your development environment:
   - Docker and required tools
-  - Docker network (gemini-network)
+  - Docker network (m-network)
   - Application user (udev1)
   - InfluxDB container (port 8181)
   - Grafana container (port 3000)
@@ -3817,7 +3817,7 @@ Monitor data ingestion:
 
 ---
 
-### Phase 5.2: Teardown Playbook Runner Script
+### Phase 6.2: Teardown Playbook Runner Script
 
 **File Location:** `scripts/run_teardown_playbook.sh`  
 **Purpose:** Convenience wrapper to execute teardown playbook with proper error handling and warnings  
@@ -3915,7 +3915,7 @@ echo "This will tear down your development environment including:"
 echo "  - Motor Ingestion container (stopped and removed)"
 echo "  - Grafana container (stopped and removed)"
 echo "  - InfluxDB container (stopped and removed)"
-echo "  - Docker network (gemini-network removed)"
+echo "  - Docker network (m-network removed)"
 echo "  - Docker group membership (removed from users)"
 echo "  - Docker service (stopped and disabled)"
 echo "  - Docker packages (uninstalled)"
@@ -4018,8 +4018,8 @@ Success? Display preserved data locations and cleanup info
   Ansible Teardown Playbook Runner
 =======================================
 
-Project Root: /home/ethan/Dev/2m/2m-premaint-02
-Ansible Directory: /home/ethan/Dev/2m/2m-premaint-02/ansible_scripts
+Project Root: /home/ethan/Dev/2m/2m-premaint-03
+Ansible Directory: /home/ethan/Dev/2m/2m-premaint-03/ansible_scripts
 
 --- Checking Ansible Installation ---
 SUCCESS: Ansible found
@@ -4039,7 +4039,7 @@ This will tear down your development environment including:
   - Motor Ingestion container (stopped and removed)
   - Grafana container (stopped and removed)
   - InfluxDB container (stopped and removed)
-  - Docker network (gemini-network removed)
+  - Docker network (m-network removed)
   - Docker group membership (removed from users)
   - Docker service (stopped and disabled)
   - Docker packages (uninstalled)
@@ -4139,7 +4139,7 @@ None currently planned - Core infrastructure automation complete!
 **If Using HTTPS Instead:**
 ```bash
 # Modify clone-repo.sh line:
-REPO_URL="https://github.com/mirko-gatti/2m-premaint-02.git"
+REPO_URL="https://github.com/mirko-gatti/2m-premaint-03.git"
 ```
 
 ### 2. Package Manager: dnf vs apt vs yum
@@ -4237,7 +4237,7 @@ All to be detailed in Phase 3:
 ### Phase 1 Testing
 ```bash
 # After clone-repo.sh
-cd ~/Dev/2m/2m-premaint-02
+cd ~/Dev/2m/2m-premaint-03
 ls -la
 # Should see: ansible_scripts/, scripts/, docs/, etc.
 ```
@@ -4277,8 +4277,8 @@ Solution:
 ```
 Error: fatal: destination path '...' already exists and is not an empty directory
 Solution:
-1. Use different target directory: ./clone-repo.sh ~/Dev/2m/2m-premaint-02-new
-2. Or delete existing: rm -rf ~/Dev/2m/2m-premaint-02 && ./clone-repo.sh
+1. Use different target directory: ./clone-repo.sh ~/Dev/2m/2m-premaint-03-new
+2. Or delete existing: rm -rf ~/Dev/2m/2m-premaint-03 && ./clone-repo.sh
 ```
 
 ### Common Issues - Phase 2
@@ -4318,51 +4318,38 @@ Or run: sudo bash setup-ansible.sh (requires root)
   - ✅ setup-ansible.sh specification
   - ✅ install_collections.yml specification
   - ✅ inventory/hosts specification
+  - ✅ Phase 2.4: Prerequisites Check
+  - ✅ Phase 2.5: Execution Workflow
 
-- ✅ **Phase 2.5:** Centralized configuration file
-  - ✅ setup-config.yaml complete specification
-  - ✅ Usage patterns for scripts and playbooks
-  - ✅ Customization examples
-  - ✅ Directory structure
+- ✅ **Phase 3:** Centralized Configuration & Security Setup
+  - ✅ Phase 3.1: Configuration file (setup-config.yaml)
+  - ✅ Phase 3.2: InfluxDB security & token generation
+  - ✅ Phase 3.3: Grafana security configuration
 
-- ✅ **Phase 2.6:** InfluxDB security & token generation
-  - ✅ influxdb-init.sh specification
-  - ✅ verify-influxdb-security.sh specification
-  - ✅ Token generation and management
-  - ✅ Integration with roles
-  - ✅ Security configuration file extension
+- ✅ **Phase 4:** Ansible Setup Playbook & Roles
+  - ✅ Phase 4.1: Main setup playbook
+  - ✅ Phase 4.2: install_tools role
+  - ✅ Phase 4.3: setup_docker role
+  - ✅ Phase 4.4: setup_udev_user role
+  - ✅ Phase 4.5: run_influxdb role
+  - ✅ Phase 4.6: run_grafana role
+  - ✅ Phase 4.7: motor_ingestion role
 
-- ✅ **Phase 2.7:** Grafana security configuration
-  - ✅ grafana-init.sh specification
-  - ✅ verify-grafana-security.sh specification
-  - ✅ Data source token authentication
-  - ✅ Service accounts and API tokens
-  - ✅ Dashboard provisioning
-  - ✅ Security features enabled
-
-- ✅ **Phase 3:** Setup playbook & roles
-  - ✅ setup_dev_env.yml playbook
-  - ✅ install_tools role
-  - ✅ setup_docker role
-  - ✅ setup_udev_user role
-  - ✅ run_influxdb role
-  - ✅ run_grafana role
-  - ✅ motor_ingestion role
-
-- ✅ **Phase 4:** Teardown playbook & roles
-  - ✅ teardown_dev_env.yml playbook
-  - ✅ teardown_motor_ingestion role
-  - ✅ teardown_grafana role
-  - ✅ teardown_influxdb role
-  - ✅ teardown_udev_user role
+- ✅ **Phase 5:** Ansible Teardown Playbook & Roles
+  - ✅ Phase 5.1: Main teardown playbook
+  - ✅ Phase 5.2: teardown_motor_ingestion role
+  - ✅ Phase 5.3: teardown_grafana role
+  - ✅ Phase 5.4: teardown_influxdb role
+  - ✅ Phase 5.5: teardown_udev_user role
+  - ✅ Phase 5.6: Main teardown tasks
   - ✅ Data preservation strategy
 
-- ✅ **Phase 5:** Helper scripts
-  - ✅ run_setup_playbook.sh specification
-  - ✅ run_teardown_playbook.sh specification
+- ✅ **Phase 6:** Helper Scripts
+  - ✅ Phase 6.1: Setup playbook runner script
+  - ✅ Phase 6.2: Teardown playbook runner script
   - ✅ Script dependencies documented
 
 ---
 
-**Document Status:** Ready for Phase 3 detailed specifications
+**Document Status:** Complete - All phases documented and numbered correctly
 

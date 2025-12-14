@@ -1,0 +1,22 @@
+---
+# tasks file for teardown_grafana
+
+- name: Stop and remove Grafana container
+  become: true
+  community.docker.docker_container:
+    name: "{{ grafana_container_name }}"
+    state: absent
+  ignore_errors: true
+  tags:
+    - teardown_grafana
+
+- name: Display teardown message
+  ansible.builtin.debug:
+    msg:
+      - "Grafana container has been removed"
+      - "Note: Data directories are preserved for backup purposes"
+      - "Data directory: {{ grafana_data_host_path }}"
+      - "Provisioning directory: {{ grafana_provisioning_host_path }}"
+      - "To delete data, run: rm -rf {{ grafana_data_host_path }} {{ grafana_provisioning_host_path }}"
+  tags:
+    - teardown_grafana

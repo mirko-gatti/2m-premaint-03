@@ -1,0 +1,30 @@
+---
+# tasks file for teardown_udev_user
+
+- name: Check if udev1 user exists
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ udev_user }}"
+  ignore_errors: true
+  register: udev_user_info
+  tags:
+    - teardown_udev_user
+
+- name: Delete udev1 user without removing home directory
+  become: true
+  ansible.builtin.user:
+    name: "{{ udev_user }}"
+    state: absent
+    remove: false
+  when: udev_user_info.failed == false
+  tags:
+    - teardown_udev_user
+
+- name: Display udev1 user teardown information
+  ansible.builtin.debug:
+    msg:
+      - "udev1 user has been deleted"
+      - "Home directory preserved: {{ udev_user_home }}"
+      - "Docker container mappings preserved: {{ udev_user_home }}/*"
+  tags:
+    - teardown_udev_user

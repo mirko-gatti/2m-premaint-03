@@ -1,0 +1,7 @@
+---
+# vars file for teardown_grafana
+
+# References same variables as setup role
+grafana_container_name: grafana
+grafana_data_host_path: "/home/udev1/grafana-data"
+grafana_provisioning_host_path: "/home/udev1/grafana-provisioning"

@@ -1,0 +1,137 @@
+---
+- name: Teardown Development Environment
+  hosts: localhost
+  connection: local
+  gather_facts: true
+
+  pre_tasks:
+    - name: Set ansible_user if not defined
+      ansible.builtin.set_fact:
+        ansible_user: "{{ lookup('env', 'USER') }}"
+      when: ansible_user is not defined
+      tags:
+        - always
+
+  roles:
+    - role: teardown_motor_ingestion
+    - role: teardown_grafana
+    - role: teardown_influxdb
+    - role: teardown_udev_user
+
+  tasks:
+    - name: Remove Docker images
+      become: true
+      community.docker.docker_image:
+        name: "{{ item }}"
+        state: absent
+      loop:
+        - influxdb:3.7.0-core
+        - grafana/grafana:main
+      ignore_errors: true
+      tags:
+        - teardown_docker
+
+    - name: Remove Docker network
+      become: true
+      community.docker.docker_network:
+        name: m-network
+        state: absent
+      ignore_errors: true
+      tags:
+        - teardown_docker
+
+    - name: Get current user groups
+      ansible.builtin.command: id -G -n {{ ansible_user }}
+      register: user_groups
+      changed_when: false
+      tags:
+        - teardown_docker
+
+    - name: Remove ansible_user from the docker group (preserve other groups)
+      become: true
+      ansible.builtin.user:
+        name: "{{ ansible_user }}"
+        groups: "{{ user_groups.stdout.split() | difference(['docker']) | join(',') }}"
+        append: false
+      when: "'docker' in user_groups.stdout.split()"
+      tags:
+        - teardown_docker
+
+    - name: Get udev1 user groups
+      ansible.builtin.command: id -G -n udev1
+      register: udev_groups
+      changed_when: false
+      ignore_errors: true
+      tags:
+        - teardown_docker
+
+    - name: Remove udev1 from the docker group (preserve other groups)
+      become: true
+      ansible.builtin.user:
+        name: "udev1"
+        groups: "{{ udev_groups.stdout.split() | difference(['docker']) | join(',') }}"
+        append: false
+      when: 
+        - udev_groups.failed == false
+        - "'docker' in udev_groups.stdout.split()"
+      tags:
+        - teardown_docker
+
+    - name: Stop and disable Docker service
+      become: true
+      ansible.builtin.systemd:
+        name: docker
+        state: stopped
+        enabled: false
+      ignore_errors: true
+      tags:
+        - teardown_docker
+
+    - name: Uninstall Docker
+      become: true
+      ansible.builtin.dnf:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-buildx-plugin
+          - docker-compose-plugin
+          - docker-ce-rootless-extras
+        state: absent
+      ignore_errors: true
+      tags:
+        - teardown_docker
+
+    - name: Display teardown completion information
+      ansible.builtin.debug:
+        msg:
+          - "========================================="
+          - "  Teardown Complete!"
+          - "========================================="
+          - ""
+          - "Removed:"
+          - "  - Motor Ingestion container and Python image"
+          - "  - Grafana container"
+          - "  - InfluxDB container"
+          - "  - Docker network (m-network)"
+          - "  - Docker group membership"
+          - "  - Docker service and packages"
+          - ""
+          - "Preserved (for recovery/audit):"
+          - "  - /home/udev1/ directory with all data"
+          - "  - InfluxDB data: /home/udev1/influxdb-data/"
+          - "  - Grafana data: /home/udev1/grafana-data/"
+          - "  - Motor ingestion: /home/udev1/motor_ingestion/"
+          - ""
+          - "To manually delete all preserved data:"
+          - "  rm -rf /home/udev1/"
+          - ""
+          - "Or delete selectively:"
+          - "  rm -rf /home/udev1/influxdb-data"
+          - "  rm -rf /home/udev1/grafana-data"
+          - "  rm -rf /home/udev1/motor_ingestion"
+          - ""
+          - "Note: You may need to log out and back in for Docker group changes"
+          - "========================================="
+      tags:
+        - always

@@ -1,0 +1,7 @@
+---
+# vars file for teardown_influxdb
+
+# References same variables as setup role
+influxdb_container_name: influxdb
+influxdb_data_host_path: "/home/udev1/influxdb-data"
+influxdb_config_host_path: "/home/udev1/influxdb-config"

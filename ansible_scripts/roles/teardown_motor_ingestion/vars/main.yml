@@ -1,0 +1,11 @@
+---
+# vars file for teardown_motor_ingestion
+
+# References same variables as setup role
+motor_ingestion_container_name: motor_ingestion
+motor_ingestion_image: "python:3.14-slim"
+motor_ingestion_host_path: "/home/udev1/motor_ingestion"
+motor_ingestion_scripts_path: "/home/udev1/motor_ingestion/scripts"
+motor_ingestion_config_path: "/home/udev1/motor_ingestion/config"
+motor_ingestion_logs_path: "/home/udev1/motor_ingestion/logs"
+motor_ingestion_data_path: "/home/udev1/motor_ingestion/data"

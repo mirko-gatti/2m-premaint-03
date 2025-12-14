@@ -1,0 +1,22 @@
+---
+# tasks file for teardown_influxdb
+
+- name: Stop and remove InfluxDB container
+  become: true
+  community.docker.docker_container:
+    name: "{{ influxdb_container_name }}"
+    state: absent
+  ignore_errors: true
+  tags:
+    - teardown_influxdb
+
+- name: Display teardown message
+  ansible.builtin.debug:
+    msg:
+      - "InfluxDB container has been removed"
+      - "Note: Data directories are preserved for backup purposes"
+      - "Data directory: {{ influxdb_data_host_path }}"
+      - "Config directory: {{ influxdb_config_host_path }}"
+      - "To delete data, run: rm -rf {{ influxdb_data_host_path }} {{ influxdb_config_host_path }}"
+  tags:
+    - teardown_influxdb

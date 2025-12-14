@@ -1,0 +1,6 @@
+---
+# vars file for teardown_udev_user
+
+# User configuration
+udev_user: "udev1"
+udev_user_home: "/home/udev1"

@@ -1,0 +1,34 @@
+---
+# tasks file for teardown_motor_ingestion
+
+- name: Stop and remove motor ingestion container
+  become: true
+  community.docker.docker_container:
+    name: "{{ motor_ingestion_container_name }}"
+    state: absent
+  ignore_errors: true
+  tags:
+    - teardown_motor_ingestion
+
+- name: Remove Python Docker image
+  become: true
+  community.docker.docker_image:
+    name: "{{ motor_ingestion_image }}"
+    state: absent
+  ignore_errors: true
+  tags:
+    - teardown_motor_ingestion
+
+- name: Display motor ingestion teardown information
+  ansible.builtin.debug:
+    msg:
+      - "Motor Ingestion container has been stopped and removed"
+      - "Python image has been removed"
+      - "Note: Data directories are preserved for backup purposes"
+      - "Scripts directory: {{ motor_ingestion_scripts_path }}"
+      - "Config directory: {{ motor_ingestion_config_path }}"
+      - "Logs directory: {{ motor_ingestion_logs_path }}"
+      - "Data directory: {{ motor_ingestion_data_path }}"
+      - "To delete data, run: rm -rf {{ motor_ingestion_host_path }}"
+  tags:
+    - teardown_motor_ingestion

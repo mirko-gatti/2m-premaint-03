@@ -1,0 +1,70 @@
+# InfluxDB Token Files (DO NOT COMMIT)
+.influxdb-admin-token
+.influxdb-motor-token
+.influxdb-grafana-token
+.influxdb-*-token
+
+# Grafana Token Files (DO NOT COMMIT)
+.grafana-admin-token
+.grafana-*-token
+
+# Generic Token Files
+*.token
+*.key
+*.secret
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environments
+venv/
+ENV/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+
+# Ansible
+*.retry
+.ansible/
+vault_pass.txt
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+*.tmp

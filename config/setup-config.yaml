@@ -1,0 +1,309 @@
+---
+# 2m-premaint-03 Setup Configuration File
+# Single source of truth for all customizable parameters
+
+# System & Package Configuration
+system:
+  package_manager: dnf
+  ansible_package: ansible-core
+  docker:
+    repo_url: https://get.docker.com
+    script_dest: /tmp/get-docker.sh
+    packages:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+      - docker-ce-rootless-extras
+
+# User & Directory Configuration
+user:
+  username: udev1
+  home_directory: /home/udev1
+  shell: /bin/bash
+  comment: "Development User for Motor Telemetry"
+
+# Docker Network Configuration
+docker:
+  network:
+    name: m-network
+    driver: bridge
+
+# InfluxDB Configuration
+influxdb:
+  container:
+    name: influxdb
+    image: influxdb:3.7.0-core
+    port: 8181
+    network: m-network
+    restart_policy: always
+  paths:
+    data: "{{ user.home_directory }}/influxdb-data"
+    config: "{{ user.home_directory }}/influxdb-config"
+  node_id: influxdb-node-1
+  http_bind_address: ":8181"
+  disable_authz_endpoints:
+    - health
+    - ping
+    - metrics
+  startup_timeout: 120
+
+# Grafana Configuration
+grafana:
+  container:
+    name: grafana
+    image: grafana/grafana:main
+    port: 3000
+    network: m-network
+    restart_policy: always
+  paths:
+    data: "{{ user.home_directory }}/grafana-data"
+    provisioning: "{{ user.home_directory }}/grafana-provisioning"
+  admin:
+    user: admin
+    password: admin
+  startup_timeout: 60
+
+# Motor Ingestion Configuration
+motor_ingestion:
+  container:
+    name: motor_ingestion
+    image: python:3.14-slim
+    network: m-network
+    restart_policy: always
+  paths:
+    base: "{{ user.home_directory }}/motor_ingestion"
+    scripts: "{{ user.home_directory }}/motor_ingestion/scripts"
+    config: "{{ user.home_directory }}/motor_ingestion/config"
+    logs: "{{ user.home_directory }}/motor_ingestion/logs"
+    data: "{{ user.home_directory }}/motor_ingestion/data"
+  container_paths:
+    scripts: /app/scripts
+    config: /app/config
+    logs: /app/logs
+    data: /app/data
+  script: main.py
+  environment:
+    PYTHONUNBUFFERED: "1"
+    LOG_LEVEL: "DEBUG"
+    INFLUXDB_URL: "http://influxdb:8181"
+    INFLUXDB_ORG: "motor_telemetry"
+    INFLUXDB_BUCKET: "sensors"
+
+# InfluxDB Schema Configuration
+influxdb_schema:
+  organization: motor_telemetry
+  bucket: sensors
+  measurements:
+    current: motor_current
+    temperature: motor_temperature
+    vibration: motor_vibration
+  tags:
+    - facility_id
+    - area_id
+    - motor_id
+
+# Motor Simulator Configuration
+motor_simulator:
+  count: 3
+  motors:
+    - id: MOTOR_001
+      facility_id: facility_1
+      area_id: area_1
+    - id: MOTOR_002
+      facility_id: facility_1
+      area_id: area_1
+    - id: MOTOR_003
+      facility_id: facility_1
+      area_id: area_2
+  intervals:
+    cycle_seconds: 20
+  current:
+    min: 24
+    max: 26
+  temperature:
+    baseline: 46
+    min: 45
+    max: 47
+
+# Project Paths
+paths:
+  project_root: "."
+  ansible_dir: "./ansible_scripts"
+  scripts_dir: "./scripts"
+  config_dir: "./config"
+
+# Feature Flags
+features:
+  preserve_data_on_teardown: true
+  healthchecks_enabled: true
+  autostart_enabled: true
+
+# ============================================================================
+# INFLUXDB SECURITY CONFIGURATION
+# ============================================================================
+
+influxdb_security:
+  # Organization configuration
+  organization:
+    name: motor_telemetry
+    description: "Motor Telemetry Data Organization"
+    
+  # Bucket configuration
+  bucket:
+    name: sensors
+    description: "Motor sensor measurements"
+    retention_period_hours: 8760  # 1 year
+    
+  # Admin user configuration
+  admin_user:
+    username: influx_admin
+    password: "ChangeMe!InfluxAdmin123"  # CHANGE THIS IN PRODUCTION
+    
+  # Application user configuration (motor ingestion)
+  app_user:
+    username: motor_app
+    password: "ChangeMe!MotorApp456"  # CHANGE THIS IN PRODUCTION
+    
+  # API Tokens configuration
+  tokens:
+    # Admin token - full access (for setup and management)
+    admin:
+      description: "InfluxDB Admin Token - Full Access"
+      permissions:
+        - action: read
+          resource:
+            type: buckets
+        - action: write
+          resource:
+            type: buckets
+      
+    # Motor ingestion token - restricted access (only write to sensors bucket)
+    motor_ingestion:
+      description: "Motor Ingestion Service - Write-Only Token"
+      permissions:
+        - action: write
+          resource:
+            type: buckets
+      
+    # Grafana token - read-only access (only read from sensors bucket)
+    grafana_reader:
+      description: "Grafana Visualization - Read-Only Token"
+      permissions:
+        - action: read
+          resource:
+            type: buckets
+  
+  # SSL/TLS Configuration (optional for development)
+  tls:
+    enabled: false  # Set to true for production
+    cert_file: /etc/influxdb2/tls/influxdb.crt
+    key_file: /etc/influxdb2/tls/influxdb.key
+  
+  # CORS Configuration (for web access)
+  cors:
+    enabled: true
+    allowed_origins:
+      - "http://localhost:3000"  # Grafana
+      - "http://localhost:8181"  # InfluxDB UI
+
+# ============================================================================
+# GRAFANA SECURITY CONFIGURATION
+# ============================================================================
+
+grafana_security:
+  # Admin user configuration (primary administrator)
+  admin:
+    username: grafana_admin
+    password: "ChangeMe!GrafanaAdmin123"  # CHANGE THIS IN PRODUCTION
+    email: admin@motor-telemetry.local
+    
+  # Organization configuration
+  organization:
+    name: "Motor Telemetry"
+    admins:
+      - grafana_admin
+      
+  # Data source configuration (InfluxDB connection)
+  datasources:
+    influxdb:
+      name: "InfluxDB-Motor"
+      type: "influxdb"
+      url: "http://influxdb:8181"
+      org_id: 1
+      is_default: true
+      access: "proxy"  # Browser/Server mode
+      # Authentication
+      auth:
+        type: "bearer_token"  # Token-based authentication
+        token_field: "Authorization"
+      # TLS/SSL configuration
+      tls:
+        skip_verify: true  # Development only - set to false in production
+      database: "{{ influxdb_schema.bucket }}"
+      
+  # Service account for programmatic access (e.g., provisioning, monitoring)
+  service_accounts:
+    provisioning:
+      name: grafana_provisioning
+      role: Editor
+      description: "Service account for dashboard provisioning"
+      scopes:
+        - dashboards:create
+        - dashboards:write
+        - dashboards:read
+        - datasources:read
+        - folders:read
+        
+    monitoring:
+      name: grafana_monitoring
+      role: Viewer
+      description: "Service account for monitoring and alerting"
+      scopes:
+        - alerts:read
+        - dashboards:read
+        - datasources:read
+
+  # API authentication settings
+  api:
+    api_key_max_seconds_to_live: 2592000  # 30 days
+    enable_api_keys: true  # Allow API key authentication
+    
+  # Session security settings
+  session:
+    cookie_name: grafana_session
+    cookie_secure: true  # HTTPS only (set to false for development)
+    cookie_samesite: Lax
+    session_life_days: 30
+    
+  # Authentication settings
+  auth:
+    # Disable auto-signup for security
+    auto_signup_enabled: false
+    # Require users to confirm email
+    email_confirmation: true
+    # Allow external authentication (optional)
+    oauth:
+      enabled: false
+      
+  # SMTP Configuration for notifications
+  smtp:
+    enabled: true
+    host: "localhost:25"  # Change to actual SMTP server
+    user: ""
+    password: ""
+    from_address: "grafana@motor-telemetry.local"
+    from_name: "Motor Telemetry Alerting"
+    
+  # Security headers
+  security_headers:
+    x_content_type_options: "nosniff"
+    x_frame_options: "DENY"
+    x_xss_protection: "1; mode=block"
+    
+  # Feature toggles for security
+  features:
+    enforce_domain_login: false  # Not enforced in dev
+    login_cookie_lifetime: 604800  # 7 days in seconds
+    oidc_enabled: false

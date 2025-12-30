@@ -1,11 +1,19 @@
 ---
 # tasks file for teardown_grafana
 
-- name: Stop and remove Grafana container
+- name: Stop and remove Grafana container by name
   become: true
   community.docker.docker_container:
     name: "{{ grafana_container_name }}"
     state: absent
+  ignore_errors: true
+  tags:
+    - teardown_grafana
+
+- name: Remove any other Grafana containers (cleanup orphans)
+  become: true
+  ansible.builtin.shell: |
+    docker ps -a --filter="ancestor=grafana/grafana:main" -q | xargs -r docker rm -f
   ignore_errors: true
   tags:
     - teardown_grafana

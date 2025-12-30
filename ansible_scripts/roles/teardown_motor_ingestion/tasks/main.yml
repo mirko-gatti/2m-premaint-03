@@ -1,11 +1,19 @@
 ---
 # tasks file for teardown_motor_ingestion
 
-- name: Stop and remove motor ingestion container
+- name: Stop and remove motor ingestion container by name
   become: true
   community.docker.docker_container:
     name: "{{ motor_ingestion_container_name }}"
     state: absent
+  ignore_errors: true
+  tags:
+    - teardown_motor_ingestion
+
+- name: Remove any other Python containers (cleanup orphans)
+  become: true
+  ansible.builtin.shell: |
+    docker ps -a --filter="ancestor=python:3.14-slim" -q | xargs -r docker rm -f
   ignore_errors: true
   tags:
     - teardown_motor_ingestion
@@ -15,6 +23,7 @@
   community.docker.docker_image:
     name: "{{ motor_ingestion_image }}"
     state: absent
+    force_absent: true
   ignore_errors: true
   tags:
     - teardown_motor_ingestion

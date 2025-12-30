@@ -19,14 +19,48 @@
     - role: teardown_udev_user
 
   tasks:
-    - name: Remove Docker images
+    - name: Stop all running Docker containers (including orphans)
+      become: true
+      ansible.builtin.shell: |
+        docker ps -q | xargs -r docker stop
+      ignore_errors: true
+      tags:
+        - teardown_docker
+
+    - name: Remove all Docker containers (including stopped)
+      become: true
+      ansible.builtin.shell: |
+        docker ps -a -q | xargs -r docker rm -f
+      ignore_errors: true
+      tags:
+        - teardown_docker
+
+    - name: Remove Docker images (explicit list)
       become: true
       community.docker.docker_image:
         name: "{{ item }}"
         state: absent
+        force_absent: true
       loop:
         - influxdb:3.7.0-core
         - grafana/grafana:main
+        - python:3.14-slim
+      ignore_errors: true
+      tags:
+        - teardown_docker
+
+    - name: Remove dangling Docker images
+      become: true
+      ansible.builtin.shell: |
+        docker image prune -a -f
+      ignore_errors: true
+      tags:
+        - teardown_docker
+
+    - name: Remove Docker volumes (if any orphaned)
+      become: true
+      ansible.builtin.shell: |
+        docker volume prune -f
       ignore_errors: true
       tags:
         - teardown_docker
@@ -61,7 +95,7 @@
       ansible.builtin.command: id -G -n udev1
       register: udev_groups
       changed_when: false
-      ignore_errors: true
+      failed_when: false
       tags:
         - teardown_docker
 
@@ -72,7 +106,7 @@
         groups: "{{ udev_groups.stdout.split() | difference(['docker']) | join(',') }}"
         append: false
       when: 
-        - udev_groups.failed == false
+        - udev_groups.rc == 0
         - "'docker' in udev_groups.stdout.split()"
       tags:
         - teardown_docker
@@ -87,7 +121,17 @@
       tags:
         - teardown_docker
 
-    - name: Uninstall Docker
+    - name: Stop containerd service if running
+      become: true
+      ansible.builtin.systemd:
+        name: containerd
+        state: stopped
+        enabled: false
+      ignore_errors: true
+      tags:
+        - teardown_docker
+
+    - name: Uninstall Docker packages
       become: true
       ansible.builtin.dnf:
         name:
@@ -97,7 +141,41 @@
           - docker-buildx-plugin
           - docker-compose-plugin
           - docker-ce-rootless-extras
+          - docker-compose
         state: absent
+      ignore_errors: true
+      tags:
+        - teardown_docker
+
+    - name: Remove Docker service and socket files
+      become: true
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/systemd/system/docker.service
+        - /etc/systemd/system/docker.socket
+        - /etc/systemd/system/containerd.service
+        - /etc/docker
+        - /var/lib/docker
+        - /var/lib/containerd
+      ignore_errors: true
+      tags:
+        - teardown_docker
+
+    - name: Clean up Docker installer script
+      become: true
+      ansible.builtin.file:
+        path: /tmp/get-docker.sh
+        state: absent
+      ignore_errors: true
+      tags:
+        - teardown_docker
+
+    - name: Reload systemd daemon to clean up Docker services
+      become: true
+      ansible.builtin.systemd:
+        daemon_reload: true
       ignore_errors: true
       tags:
         - teardown_docker
@@ -109,15 +187,19 @@
           - "  Teardown Complete!"
           - "========================================="
           - ""
-          - "Removed:"
-          - "  - Motor Ingestion container and Python image"
-          - "  - Grafana container"
-          - "  - InfluxDB container"
+          - "COMPLETELY REMOVED:"
+          - "  - All Docker containers (running and stopped)"
+          - "  - All Docker images (including orphans)"
+          - "  - Motor Ingestion Python image"
           - "  - Docker network (m-network)"
           - "  - Docker group membership"
-          - "  - Docker service and packages"
+          - "  - Docker daemon and containerd services"
+          - "  - Docker packages (docker-ce, containerd, plugins)"
+          - "  - Docker configuration files (/etc/docker)"
+          - "  - Docker storage (/var/lib/docker, /var/lib/containerd)"
+          - "  - Docker installer script (/tmp/get-docker.sh)"
           - ""
-          - "Preserved (for recovery/audit):"
+          - "PRESERVED (for recovery/audit):"
           - "  - /home/udev1/ directory with all data"
           - "  - InfluxDB data: /home/udev1/influxdb-data/"
           - "  - Grafana data: /home/udev1/grafana-data/"
@@ -131,7 +213,8 @@
           - "  rm -rf /home/udev1/grafana-data"
           - "  rm -rf /home/udev1/motor_ingestion"
           - ""
-          - "Note: You may need to log out and back in for Docker group changes"
+          - "NOTE: You may need to log out and back in for Docker group"
+          - "      changes to take effect. Docker is completely uninstalled."
           - "========================================="
       tags:
         - always

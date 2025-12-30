@@ -9,6 +9,7 @@
     mode: '0777'
     owner: "udev1"
     group: "udev1"
+    recurse: true
   tags:
     - run_grafana
 
@@ -20,19 +21,11 @@
     mode: '0777'
     owner: "udev1"
     group: "udev1"
+    recurse: true
   tags:
     - run_grafana
 
-- name: Remove existing Grafana container (if any)
-  become: true
-  community.docker.docker_container:
-    name: "{{ grafana_container_name }}"
-    state: absent
-  ignore_errors: true
-  tags:
-    - run_grafana
-
-- name: Run Grafana container
+- name: Run Grafana container (idempotent)
   become: true
   community.docker.docker_container:
     name: "{{ grafana_container_name }}"

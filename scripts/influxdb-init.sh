@@ -2,12 +2,30 @@
 
 # InfluxDB Security Initialization Script
 # Sets up organization, buckets, users, and tokens with security enabled
+# Idempotent: Can be safely run multiple times (checks for existing state)
 
 set -e
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PROJECT_ROOT="$( cd "$SCRIPT_DIR/.." && pwd )"
 CONFIG_FILE="$PROJECT_ROOT/config/setup-config.yaml"
+INIT_STATE_FILE="$PROJECT_ROOT/.influxdb-initialized"
+
+# Check if already initialized
+if [ -f "$INIT_STATE_FILE" ]; then
+    echo "======================================="
+    echo "  InfluxDB Already Initialized"
+    echo "======================================="
+    echo ""
+    echo "State file found: $INIT_STATE_FILE"
+    echo "InfluxDB has already been initialized."
+    echo ""
+    echo "To reinitialize, remove the state file:"
+    echo "  rm $INIT_STATE_FILE"
+    echo "Then run this script again."
+    echo ""
+    exit 0
+fi
 
 echo "======================================="
 echo "  InfluxDB Security Initialization"
@@ -61,51 +79,87 @@ done
 
 echo ""
 echo "--- Creating Organization ---"
-# Create organization
-docker exec influxdb influxdb3 org create \
-    --name "$INFLUXDB_ORG" \
-    2>/dev/null || echo "Organization may already exist"
+# Create organization - check if already exists first
+ORG_CHECK=$(docker exec influxdb influxdb3 org list --format json 2>/dev/null | grep -c "\"name\":\"$INFLUXDB_ORG\"" || echo "0")
+if [ "$ORG_CHECK" -eq 0 ]; then
+    docker exec influxdb influxdb3 org create \
+        --name "$INFLUXDB_ORG" \
+        || handle_error "Failed to create organization"
+    echo "Organization created: $INFLUXDB_ORG"
+else
+    echo "Organization already exists: $INFLUXDB_ORG"
+fi
 
 echo ""
 echo "--- Creating Bucket ---"
-# Create bucket in organization
-docker exec influxdb influxdb3 bucket create \
-    --name "$INFLUXDB_BUCKET" \
-    --org "$INFLUXDB_ORG" \
-    --retention 8760h \
-    2>/dev/null || echo "Bucket may already exist"
+# Create bucket in organization - check if already exists first
+BUCKET_CHECK=$(docker exec influxdb influxdb3 bucket list --org "$INFLUXDB_ORG" --format json 2>/dev/null | grep -c "\"name\":\"$INFLUXDB_BUCKET\"" || echo "0")
+if [ "$BUCKET_CHECK" -eq 0 ]; then
+    docker exec influxdb influxdb3 bucket create \
+        --name "$INFLUXDB_BUCKET" \
+        --org "$INFLUXDB_ORG" \
+        --retention 8760h \
+        || handle_error "Failed to create bucket"
+    echo "Bucket created: $INFLUXDB_BUCKET"
+else
+    echo "Bucket already exists: $INFLUXDB_BUCKET"
+fi
 
 echo ""
 echo "--- Creating Admin User ---"
-# Create admin user
-docker exec influxdb influxdb3 user create \
-    --name "$ADMIN_USER" \
-    --password "$ADMIN_PASSWORD" \
-    2>/dev/null || echo "Admin user may already exist"
+# Create admin user - check if already exists first
+ADMIN_CHECK=$(docker exec influxdb influxdb3 user list --format json 2>/dev/null | grep -c "\"name\":\"$ADMIN_USER\"" || echo "0")
+if [ "$ADMIN_CHECK" -eq 0 ]; then
+    docker exec influxdb influxdb3 user create \
+        --name "$ADMIN_USER" \
+        --password "$ADMIN_PASSWORD" \
+        || handle_error "Failed to create admin user"
+    echo "Admin user created: $ADMIN_USER"
+else
+    echo "Admin user already exists: $ADMIN_USER"
+fi
 
 echo ""
 echo "--- Creating Application User ---"
-# Create application user
-docker exec influxdb influxdb3 user create \
-    --name "$APP_USER" \
-    --password "$APP_PASSWORD" \
-    2>/dev/null || echo "App user may already exist"
+# Create application user - check if already exists first
+APP_CHECK=$(docker exec influxdb influxdb3 user list --format json 2>/dev/null | grep -c "\"name\":\"$APP_USER\"" || echo "0")
+if [ "$APP_CHECK" -eq 0 ]; then
+    docker exec influxdb influxdb3 user create \
+        --name "$APP_USER" \
+        --password "$APP_PASSWORD" \
+        || handle_error "Failed to create app user"
+    echo "App user created: $APP_USER"
+else
+    echo "App user already exists: $APP_USER"
+fi
 
 echo ""
 echo "--- Assigning Roles ---"
-# Assign admin user to organization with owner role
-docker exec influxdb influxdb3 member create \
-    --member "$ADMIN_USER" \
-    --org "$INFLUXDB_ORG" \
-    --role owner \
-    2>/dev/null || echo "Admin role assignment may already exist"
+# Assign admin user to organization with owner role - check if already assigned
+ADMIN_ROLE_CHECK=$(docker exec influxdb influxdb3 member list --org "$INFLUXDB_ORG" --format json 2>/dev/null | grep -c "\"name\":\"$ADMIN_USER\"" || echo "0")
+if [ "$ADMIN_ROLE_CHECK" -eq 0 ]; then
+    docker exec influxdb influxdb3 member create \
+        --member "$ADMIN_USER" \
+        --org "$INFLUXDB_ORG" \
+        --role owner \
+        || handle_error "Failed to assign admin role"
+    echo "Admin role assigned to organization"
+else
+    echo "Admin role already assigned"
+fi
 
-# Assign app user to organization with member role
-docker exec influxdb influxdb3 member create \
-    --member "$APP_USER" \
-    --org "$INFLUXDB_ORG" \
-    --role member \
-    2>/dev/null || echo "App role assignment may already exist"
+# Assign app user to organization with member role - check if already assigned
+APP_ROLE_CHECK=$(docker exec influxdb influxdb3 member list --org "$INFLUXDB_ORG" --format json 2>/dev/null | grep -c "\"name\":\"$APP_USER\"" || echo "0")
+if [ "$APP_ROLE_CHECK" -eq 0 ]; then
+    docker exec influxdb influxdb3 member create \
+        --member "$APP_USER" \
+        --org "$INFLUXDB_ORG" \
+        --role member \
+        || handle_error "Failed to assign app role"
+    echo "App role assigned to organization"
+else
+    echo "App role already assigned"
+fi
 
 echo ""
 echo "--- Creating API Tokens ---"
@@ -188,6 +242,13 @@ echo "NOTE: Update ansible_scripts/roles/motor_ingestion/vars/main.yml"
 echo "      with the motor ingestion token"
 echo ""
 echo "NOTE: Configure Grafana data source with grafana token"
+echo ""
+
+# Create state marker file to indicate initialization has completed
+touch "$INIT_STATE_FILE"
+echo ""
+echo "State marker created: $INIT_STATE_FILE"
+echo "To reinitialize, remove this file and run the script again."
 echo ""
 
 exit 0

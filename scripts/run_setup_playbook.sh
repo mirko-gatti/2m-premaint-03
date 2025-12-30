@@ -71,23 +71,51 @@ fi
 echo "SUCCESS: community.docker collection is installed"
 
 # Confirm before proceeding
-print_section "Ready to Deploy"
+print_section "Ready to Deploy - Please Review"
 echo ""
-echo "This will setup your development environment:"
-echo "  - Docker and required tools"
-echo "  - Docker network (m-network)"
-echo "  - Application user (udev1)"
-echo "  - InfluxDB container (port 8181)"
-echo "  - Grafana container (port 3000)"
-echo "  - Motor Ingestion container"
+echo "⚠️  WARNING: This setup will perform the following actions:"
 echo ""
-read -p "Do you want to proceed? (yes/no): " CONFIRM
+echo "✓ Installation:"
+echo "    - Install Ansible and Docker"
+echo "    - Setup Docker daemon and enable auto-start"
+echo "    - Create application user (udev1)"
+echo ""
+echo "✓ Docker Infrastructure:"
+echo "    - Create Docker network: m-network"
+echo "    - Pull Docker images (InfluxDB, Grafana, Python)"
+echo "    - Create data directories under /home/udev1/"
+echo ""
+echo "✓ Containers (will be started and configured for auto-restart):"
+echo "    - InfluxDB (port 8181) - Time-series database"
+echo "    - Grafana (port 3000) - Visualization dashboard"
+echo "    - Motor Ingestion (Python 3.14) - Data ingestion container"
+echo ""
+echo "✓ Security Configuration:"
+echo "    - Create InfluxDB users and organizations"
+echo "    - Generate InfluxDB API tokens (saved to .influxdb-*-token files)"
+echo "    - Configure Grafana admin user and datasource"
+echo "    - Generate Grafana API tokens (saved to .grafana-*-token files)"
+echo ""
+echo "⚠️  REQUIREMENTS:"
+echo "    - Sudo/root access required"
+echo "    - Docker installation will download and execute get-docker.sh"
+echo "    - Network ports 8181 and 3000 must be available"
+echo "    - Estimated time: 5-10 minutes on first run"
+echo ""
+echo "✓ DATA PRESERVATION:"
+echo "    - All data in /home/udev1/*/data directories persists across teardowns"
+echo "    - To cleanly remove everything: run_teardown_playbook.sh"
+echo ""
+read -p "Are you SURE you want to proceed? (type 'yes' to confirm): " CONFIRM
 
 if [ "$CONFIRM" != "yes" ]
 then
-    echo "Setup cancelled."
+    echo ""
+    echo "Setup cancelled by user."
     exit 0
 fi
+
+echo ""
 
 # Run the setup playbook
 print_section "Running Setup Playbook"

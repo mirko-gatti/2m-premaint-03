@@ -9,6 +9,7 @@
     mode: '0755'
     owner: "udev1"
     group: "udev1"
+    recurse: true
   tags:
     - run_influxdb
 
@@ -20,19 +21,11 @@
     mode: '0755'
     owner: "udev1"
     group: "udev1"
+    recurse: true
   tags:
     - run_influxdb
 
-- name: Remove existing InfluxDB container (if any)
-  become: true
-  community.docker.docker_container:
-    name: "{{ influxdb_container_name }}"
-    state: absent
-  ignore_errors: true
-  tags:
-    - run_influxdb
-
-- name: Run InfluxDB container
+- name: Run InfluxDB container (idempotent)
   become: true
   community.docker.docker_container:
     name: "{{ influxdb_container_name }}"

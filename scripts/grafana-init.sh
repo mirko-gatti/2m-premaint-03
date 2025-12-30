@@ -2,12 +2,30 @@
 
 # Grafana Security Initialization Script
 # Sets up admin user, data sources, service accounts, and API tokens
+# Idempotent: Can be safely run multiple times (checks for existing state)
 
 set -e
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PROJECT_ROOT="$( cd "$SCRIPT_DIR/.." && pwd )"
 CONFIG_FILE="$PROJECT_ROOT/config/setup-config.yaml"
+INIT_STATE_FILE="$PROJECT_ROOT/.grafana-initialized"
+
+# Check if already initialized
+if [ -f "$INIT_STATE_FILE" ]; then
+    echo "======================================="
+    echo "  Grafana Already Initialized"
+    echo "======================================="
+    echo ""
+    echo "State file found: $INIT_STATE_FILE"
+    echo "Grafana has already been initialized."
+    echo ""
+    echo "To reinitialize, remove the state file:"
+    echo "  rm $INIT_STATE_FILE"
+    echo "Then run this script again."
+    echo ""
+    exit 0
+fi
 
 echo "======================================="
 echo "  Grafana Security Initialization"
@@ -64,14 +82,25 @@ done
 
 echo ""
 echo "--- Setting Admin Password ---"
-# Grafana sets default admin password (admin:admin) at startup
-# Change it to the configured password
-curl -s -X POST \
-    -u admin:admin \
-    http://localhost:3000/api/admin/users/1/password \
-    -H "Content-Type: application/json" \
-    -d "{\"password\":\"$GRAFANA_ADMIN_PASSWORD\"}" \
-    2>/dev/null && echo "Admin password set" || echo "Password may already be set"
+# Try to authenticate with new password first (idempotency check)
+if curl -s -f -u "$GRAFANA_ADMIN_USER:$GRAFANA_ADMIN_PASSWORD" \
+    http://localhost:3000/api/health &>/dev/null; then
+    echo "Admin password already set correctly"
+else
+    # Password not set or incorrect, try default and update
+    if curl -s -f -u admin:admin http://localhost:3000/api/health &>/dev/null; then
+        echo "Updating admin password..."
+        curl -s -X POST \
+            -u admin:admin \
+            http://localhost:3000/api/admin/users/1/password \
+            -H "Content-Type: application/json" \
+            -d "{\"password\":\"$GRAFANA_ADMIN_PASSWORD\"}" \
+            2>/dev/null && echo "Admin password updated" || handle_error "Failed to update admin password"
+    else
+        echo "WARNING: Could not authenticate with default or configured credentials"
+        echo "Manual password reset may be required"
+    fi
+fi
 
 echo ""
 echo "--- Creating Data Source ---"
@@ -84,8 +113,16 @@ else
     INFLUXDB_TOKEN="placeholder-token"
 fi
 
-# Create InfluxDB data source with token authentication
-DS_JSON=$(cat <<EOF
+# Check if data source already exists
+DS_CHECK=$(curl -s -u "$GRAFANA_ADMIN_USER:$GRAFANA_ADMIN_PASSWORD" \
+    http://localhost:3000/api/datasources \
+    2>/dev/null | grep -c "InfluxDB-Motor" || echo "0")
+
+if [ "$DS_CHECK" -eq 0 ]; then
+    echo "Creating InfluxDB data source..."
+    
+    # Create InfluxDB data source with token authentication
+    DS_JSON=$(cat <<EOF
 {
   "name": "InfluxDB-Motor",
   "type": "influxdb",
@@ -105,12 +142,22 @@ DS_JSON=$(cat <<EOF
 EOF
 )
 
-curl -s -X POST \
-    -u "$GRAFANA_ADMIN_USER:$GRAFANA_ADMIN_PASSWORD" \
-    http://localhost:3000/api/datasources \
-    -H "Content-Type: application/json" \
-    -d "$DS_JSON" \
-    2>/dev/null && echo "Data source created" || echo "Data source may already exist"
+    DS_RESULT=$(curl -s -w "\n%{http_code}" -X POST \
+        -u "$GRAFANA_ADMIN_USER:$GRAFANA_ADMIN_PASSWORD" \
+        http://localhost:3000/api/datasources \
+        -H "Content-Type: application/json" \
+        -d "$DS_JSON" \
+        2>/dev/null)
+    
+    DS_HTTP_CODE=$(echo "$DS_RESULT" | tail -1)
+    if [ "$DS_HTTP_CODE" = "200" ] || [ "$DS_HTTP_CODE" = "201" ]; then
+        echo "Data source created successfully"
+    else
+        echo "WARNING: Data source creation may have failed (HTTP $DS_HTTP_CODE)"
+    fi
+else
+    echo "Data source already exists: InfluxDB-Motor"
+fi
 
 echo ""
 echo "--- Creating Service Accounts ---"
@@ -239,10 +286,16 @@ echo "  - URL: $INFLUXDB_URL"
 echo "  - Bucket: $INFLUXDB_BUCKET"
 echo ""
 echo "Security Features Enabled:"
-echo "  - Admin password changed"
+echo "  - Admin password configured"
 echo "  - Data source configured with token authentication"
 echo "  - Service accounts created"
 echo "  - API tokens generated"
+echo ""
+
+# Create state marker file to indicate initialization has completed
+touch "$INIT_STATE_FILE"
+echo "State marker created: $INIT_STATE_FILE"
+echo "To reinitialize, remove this file and run the script again."
 echo ""
 
 exit 0

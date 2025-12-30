@@ -9,6 +9,7 @@
     mode: '0755'
     owner: "{{ motor_ingestion_user }}"
     group: "{{ motor_ingestion_user }}"
+    recurse: true
   loop:
     - "{{ motor_ingestion_host_path }}"
     - "{{ motor_ingestion_scripts_path }}"
@@ -27,16 +28,7 @@
   tags:
     - motor_ingestion
 
-- name: Remove existing motor ingestion container (if any)
-  become: true
-  community.docker.docker_container:
-    name: "{{ motor_ingestion_container_name }}"
-    state: absent
-  ignore_errors: true
-  tags:
-    - motor_ingestion
-
-- name: Run motor ingestion container with placeholder
+- name: Run motor ingestion container (idempotent)
   become: true
   community.docker.docker_container:
     name: "{{ motor_ingestion_container_name }}"

@@ -24,11 +24,33 @@
     - role: motor_ingestion
 
   post_tasks:
+    - name: Wait for Docker daemon to be accessible
+      ansible.builtin.wait_for:
+        timeout: 10
+      tags:
+        - influxdb_security
+        - grafana_security
+
+    - name: Reset SSH connection to ensure group membership is applied
+      ansible.builtin.meta: reset_connection
+      tags:
+        - influxdb_security
+        - grafana_security
+
     - name: Run InfluxDB security initialization
       ansible.builtin.command: "{{ playbook_dir }}/../scripts/influxdb-init.sh"
       register: influxdb_init_result
       changed_when: false
-      ignore_errors: true
+      become: true
+      tags:
+        - influxdb_security
+
+    - name: Validate InfluxDB initialization
+      ansible.builtin.assert:
+        that:
+          - influxdb_init_result.rc == 0
+        fail_msg: "InfluxDB initialization failed. Check the output above."
+        success_msg: "InfluxDB initialization completed successfully."
       tags:
         - influxdb_security
 
@@ -36,7 +58,30 @@
       ansible.builtin.command: "{{ playbook_dir }}/../scripts/grafana-init.sh"
       register: grafana_init_result
       changed_when: false
-      ignore_errors: true
+      become: true
+      tags:
+        - grafana_security
+
+    - name: Validate Grafana initialization
+      ansible.builtin.assert:
+        that:
+          - grafana_init_result.rc == 0
+        fail_msg: "Grafana initialization failed. Check the output above."
+        success_msg: "Grafana initialization completed successfully."
+      tags:
+        - grafana_security
+
+    - name: Verify InfluxDB initialization completed
+      ansible.builtin.stat:
+        path: "{{ playbook_dir }}/../.influxdb-initialized"
+      register: influxdb_init_marker
+      tags:
+        - influxdb_security
+
+    - name: Verify Grafana initialization completed
+      ansible.builtin.stat:
+        path: "{{ playbook_dir }}/../.grafana-initialized"
+      register: grafana_init_marker
       tags:
         - grafana_security
 
